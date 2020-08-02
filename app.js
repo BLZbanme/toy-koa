@@ -21,6 +21,7 @@ app.use(async (ctx, next) => {
 
 app.use(async ctx => {
     console.log(3);
+    ctx.status = '1100';
     ctx.body = 'Hello World';
 });
 

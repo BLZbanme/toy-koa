@@ -1,11 +1,16 @@
-let EventEmitter = require("events");
-let http = require('http');
-const { nextTick } = require("process");
+const EventEmitter = require("events");
+const http = require('http');
+let context = require('./context');
+let request = require('./request');
+let response = require("./response");
 
 class Application extends EventEmitter {
     constructor() {
         super();
         this.middlewares = [];
+        this.context = context;
+        this.request = request;
+        this.response = response;
     }
 
     use(middleware) {
@@ -34,21 +39,52 @@ class Application extends EventEmitter {
                 next = createNext(currentMiddleWare, next);
             }
 
-            
-
             await next();
         }
     }
 
-    callback() {
-        return () => {
-            let ctx = "我是ctx";
-            let respond = "输出到页面";
-            let onerror = "处理错误对象";
+    createContext(req, res) {
+        let ctx = Object.assign(this.context);
+        ctx.request = Object.assign(this.request);
+        ctx.response = Object.assign(this.response);
+        ctx.req = ctx.request.req = req;
+        ctx.res = ctx.response.res = res;
+        return ctx;
+    }
 
+    callback() {
+        return (req, res) => {
+            let ctx = this.createContext(req, res);
+            console.log('callback', ctx);
+            let respond = () => this.responseBody(ctx);
+            let onerror = err => this.onerror(err, ctx);
             let fn = this.compose();
             return fn(ctx).then(respond).catch(onerror);
         }
+    }
+    
+    responseBody(ctx) {
+        console.log('responseBody', ctx);
+        let context = ctx.body;
+        console.log('context', context);
+        if (typeof context === 'string' ) {
+            ctx.res.end(context);
+        }
+        else if (typeof context === 'object') {
+            ctx.res.end(JSON.stringify(context));
+        }
+    }
+
+    onerror(err, ctx) {
+        if (err.code == 'ENOENT') {
+            ctx.status = 404;
+        }
+        else {
+            ctx.status = 500;
+        }
+        let msg = err.message || "服务器异常";
+        ctx.res.end(msg);
+        this.emit("error", err);
     }
 
     listen(...args) {
