@@ -64,9 +64,7 @@ class Application extends EventEmitter {
     }
     
     responseBody(ctx) {
-        console.log('responseBody', ctx);
         let context = ctx.body;
-        console.log('context', context);
         if (typeof context === 'string' ) {
             ctx.res.end(context);
         }
